@@ -51,12 +51,12 @@ var lib = {
 	},
 
 	hash: function(item) {
-		var blacklist = [deafults.pk];
+		var blacklist = [defaults.pk];
 		if (defaults.ck !== '') {
-			blacklist.push(deafults.ck);
+			blacklist.push(defaults.ck);
 		}
 		if (defaults.mk !== '') {
-			blacklist.push(deafults.mk);
+			blacklist.push(defaults.mk);
 		}
 		return hash(_.omit(item, blacklist));
 	},

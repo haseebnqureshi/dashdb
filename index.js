@@ -51,7 +51,14 @@ var lib = {
 	},
 
 	hash: function(item) {
-		return hash(_.omit(item, [defaults.pk, defaults.ck, defaults.mk]));
+		var blacklist = [deafults.pk];
+		if (defaults.ck !== '') {
+			blacklist.push(deafults.ck);
+		}
+		if (defaults.mk !== '') {
+			blacklist.push(deafults.mk);
+		}
+		return hash(_.omit(item, blacklist));
 	},
 
 	id: function(entropy) {
@@ -126,9 +133,15 @@ var api = function(dataType) {
 		append: function(item1, item2, item3) {
 			var items = _.map(arguments, function(item) {
 				item[defaults.pk] = lib.id();
-				item[defaults.hk] = lib.hash(item);
-				item[defaults.ck] = moment().format();
-				item[defaults.mk] = item[defaults.ck];
+				if (defaults.hk !== '') { 
+					item[defaults.hk] = lib.hash(item);
+				}
+				if (defaults.ck !== '') { 
+					item[defaults.ck] = moment().format();
+				}
+				if (defaults.mk !== '') { 
+					item[defaults.mk] = item[defaults.ck];
+				}
 				return item;
 			});
 			data[dataType] = data[dataType].concat(_.values(items));
@@ -159,8 +172,12 @@ var api = function(dataType) {
 			data[dataType] = _.map(data[dataType], function(row) {
 				if (!_.findWhere([row], predicate)) { return row; }
 				row = _.extend(row, values);
-				row[defaults.hk] = lib.hash(row);
-				row[defaults.mk] = moment().format();
+				if (defaults.hk !== '') {
+					row[defaults.hk] = lib.hash(row);
+				}
+				if (defaults.mk !== '') { 
+					item[defaults.mk] = moment().format();
+				}
 				return row;
 			});
 		},

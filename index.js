@@ -2,6 +2,7 @@
 
 var _ = require('underscore');
 var fs = require('fs-extra');
+var atomicWriteSync = require('write-file-atomic').sync;
 var path = require('path');
 var generate = require('nanoid/generate');
 var hash = require('object-hash');
@@ -97,7 +98,8 @@ var lib = {
 
 	saveFile: function(dataType) {
 		var contents = _.map(data[dataType], JSON.stringify).join("\n");
-		fs.writeFileSync(this.filepath(dataType), contents, 'utf8');
+		atomicWriteSync(this.filepath(dataType), contents);
+		// fs.writeFileSync(this.filepath(dataType), contents, 'utf8');
 	}
 
 };

@@ -17,6 +17,8 @@ var defaults = {
 	// hkUniq: false, /* makes all entries unique by object hash */
 	ck: 'created', /* created key */
 	mk: 'modified' /* modified key */,
+	uid: null, /* user id for any temporary writes, user permissions */
+	gid: null, /* group id for any temporary writes, group permissions
 	backupSchedule: '* 0 * * *', /* chron schedule for every midnight, @see https://www.npmjs.com/package/node-schedule */
 	s3BucketName: '', /* bucket where data backups will be uploaded onto */
 	s3BucketPath: 'dashdb/', /* defaulting to uploading any s3 files into a folder, in the bucket */
@@ -98,7 +100,17 @@ var lib = {
 
 	saveFile: function(dataType) {
 		var contents = _.map(data[dataType], JSON.stringify).join("\n");
-		atomicWriteSync(this.filepath(dataType), contents);
+		var options = { encoding: 'utf8' };
+		if (defaults.uid || defaults.gid) {
+			options.chown = {};
+			if (defaults.uid) {
+				options.chown.uid = defaults.uid;
+			}
+			if (defaults.gid) {
+				options.chown.gid = defaults.gid;
+			}
+		}
+		atomicWriteSync(this.filepath(dataType), contents, options);
 		// fs.writeFileSync(this.filepath(dataType), contents, 'utf8');
 	}
 

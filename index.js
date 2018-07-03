@@ -2,9 +2,12 @@
 
 var _ = require('underscore');
 var fs = require('fs-extra');
+var path = require('path');
 var generate = require('nanoid/generate');
 var hash = require('object-hash');
 var moment = require('moment');
+var aws = require('aws-sdk');
+var scheduler = require('node-schedule');
 
 var defaults = {
 	pk: 'id', /* primary key */
@@ -12,7 +15,13 @@ var defaults = {
 	hk: 'hash', /* hash key */
 	// hkUniq: false, /* makes all entries unique by object hash */
 	ck: 'created', /* created key */
-	mk: 'modified' /* modified key */
+	mk: 'modified' /* modified key */,
+	backupSchedule: '* 0 * * *', /* chron schedule for every midnight, @see https://www.npmjs.com/package/node-schedule */
+	s3BucketName: '', /* bucket where data backups will be uploaded onto */
+	s3BucketPath: 'dashdb/', /* defaulting to uploading any s3 files into a folder, in the bucket */
+	s3AccessKey: '', /* aws access key for s3 put object permissions */
+	s3SecretAccessKey: '', /* aws secret access key for s3 put object permissions */
+	s3FileKey: `moment().format('YYYY/MM') + '/' + moment().format() + '-' + path.basename(filepath)` /* js eval to create file key onto s3 */
 };
 
 var data = {};
@@ -54,6 +63,31 @@ var lib = {
 		data[dataType] = contents ? _.map(contents.split("\n"), JSON.parse) : [];
 	},
 
+	s3: function() {
+		aws.config.update({ 
+			accessKeyId: defaults.s3AccessKey,
+			secretAccessKey: defaults.s3SecretAccessKey
+		});
+		return new aws.S3();
+	},
+
+	s3File: function(dataType) {
+		var filepath = this.filepath(dataType);
+		var contents = fs.readFileSync(filepath, 'utf8');
+		var body = new Buffer(contents, 'binary');
+		var key = defaults.s3BucketPath + eval(defaults.s3FileKey);
+		// console.log({ key });
+		var s3 = this.s3();
+		s3.putObject({
+			Bucket: defaults.s3BucketName,
+			Key: key,
+			Body: body,
+			ACL: 'private'
+		}, function(err, data) {
+			// console.log({ err, data });
+		});
+	},
+
 	saveFile: function(dataType) {
 		var contents = _.map(data[dataType], JSON.stringify).join("\n");
 		fs.writeFileSync(this.filepath(dataType), contents, 'utf8');
@@ -64,11 +98,22 @@ var lib = {
 
 var api = function(dataType) {
 
+	var filepath = lib.filepath(dataType);
+
+	if (defaults.s3BucketName !== ''
+		&& defaults.s3AccessKey !== ''
+		&& defaults.s3SecretAccessKey !== ''
+		&& defaults.backupSchedule) {
+		scheduler.scheduleJob(defaults.backupSchedule, function() {
+			lib.s3File(dataType);
+		});
+	}
+
 	return {
 
 		dataType,
 
-		filepath: lib.filepath(dataType),
+		filepath,
 
 		all: function() {
 			return data[dataType];

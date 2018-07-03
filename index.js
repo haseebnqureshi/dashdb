@@ -132,7 +132,11 @@ var api = function(dataType) {
 
 		append: function(item1, item2, item3) {
 			var items = _.map(arguments, function(item) {
-				item[defaults.pk] = lib.id();
+				if (defaults.pk !== '') {
+					if (!item[defaults.pk]) {
+						item[defaults.pk] = lib.id();
+					}
+				}
 				if (defaults.hk !== '') { 
 					item[defaults.hk] = lib.hash(item);
 				}

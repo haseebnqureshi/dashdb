@@ -91,9 +91,15 @@ Any manipulations to your collection, including any updates, insertions, or remo
 
 ### Methods
 ```require('dashdb')('users').all()``` retrieves all the records for that collection
+
 ```require('dashdb')('users').create(item1, item2, ...)``` inserts any number of items into your collection
+
 ```require('dashdb')('users').delete(predicate)``` removes any records matching that ```predicate``` object
+
 ```require('dashdb')('users').empty()``` completely removes all records from the collection and should be used with caution
+
 ```require('dashdb')('users').update(predicate, values)``` updates any records matching the ```predicate``` object with the ```values``` object
+
 ```require('dashdb')('users').where(predicate)``` retrieves all records matching the ```predicate``` object
+
 ```require('dashdb')('users').filepath``` returns the data path to where the collection json is stored on disk

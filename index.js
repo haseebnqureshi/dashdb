@@ -18,7 +18,8 @@ var defaults = {
 	ck: 'created', /* created key */
 	mk: 'modified' /* modified key */,
 	uid: null, /* user id for any temporary writes, user permissions */
-	gid: null, /* group id for any temporary writes, group permissions
+	gid: null, /* group id for any temporary writes, group permissions */
+	autoWrite: true, /* whether data is automatically written to filesystem on any change, except for empty() */
 	backupSchedule: '* 0 * * *', /* chron schedule for every midnight, @see https://www.npmjs.com/package/node-schedule */
 	s3BucketName: '', /* bucket where data backups will be uploaded onto */
 	s3BucketPath: 'dashdb/', /* defaulting to uploading any s3 files into a folder, in the bucket */
@@ -35,6 +36,12 @@ var lib = {
 		var line = this.dataToLine(dataType, d);
 		fs.appendFileSync(this.filepath(dataType), line);
 		data[dataType].push(line);
+	},
+
+	autoWrite: function(dataType) {
+		if (defaults.autoWrite === true) {
+			this.saveFile(dataType);
+		}
 	},
 
 	dataToLine: function(dataType, d) {
@@ -163,6 +170,7 @@ var api = function(dataType) {
 				return item;
 			});
 			data[dataType] = data[dataType].concat(_.values(items));
+			lib.autoWrite(dataType);
 		},
 
 		create: function(item1, item2, item3) {
@@ -176,6 +184,7 @@ var api = function(dataType) {
 		delete: function(predicate) {
 			var rows = _.filter(data[dataType], predicate);
 			data[dataType] = _.difference(data[dataType], rows);			
+			lib.autoWrite(dataType);
 		},
 
 		empty: function() {
@@ -184,6 +193,25 @@ var api = function(dataType) {
 
 		reload: function() {
 			lib.loadFile(dataType);
+		},
+
+		s3: function() {
+			if (defaults.s3BucketName !== ''
+				&& defaults.s3AccessKey !== ''
+				&& defaults.s3SecretAccessKey !== '') {
+				lib.s3File(dataType);
+			}
+		},
+
+		scheduleS3: function() {
+			if (defaults.s3BucketName !== ''
+				&& defaults.s3AccessKey !== ''
+				&& defaults.s3SecretAccessKey !== ''
+				&& defaults.backupSchedule !== '') {
+				scheduler.scheduleJob(defaults.backupSchedule, function() {
+					lib.s3File(dataType);
+				});
+			}
 		},
 
 		update: function(predicate, values) {
@@ -198,14 +226,15 @@ var api = function(dataType) {
 				}
 				return row;
 			});
-		},
-
-		where: function(predicate) {
-			return _.where(data[dataType], predicate);
+			lib.autoWrite(dataType);
 		},
 
 		sync: function() {
 			this.commit();
+		},
+
+		where: function(predicate) {
+			return _.where(data[dataType], predicate);
 		}
 
 	}
@@ -214,13 +243,6 @@ var api = function(dataType) {
 
 
 module.exports = function(dataType, options) {
-
-	/*
-	options.pk = 'id' | string | null
-		can set the primary key of documents and how they're retrieved
-	options.uniq = 'document' | 'pk' | null 
-		each row can be non-unique, or unique by the row or its primary key
-	*/
 
 	defaults = _.extend(defaults, options || {});
 

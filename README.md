@@ -27,7 +27,8 @@ var options = {
 	ck: 'created', /* created key */
 	mk: 'modified' /* modified key */,
 	uid: null, /* user id for any temporary writes, user permissions */
-	gid: null, /* group id for any temporary writes, group permissions
+	gid: null, /* group id for any temporary writes, group permissions */
+	autoWrite: true, /* whether data is automatically written to filesystem on any change, except for empty() */
 	backupSchedule: '* 0 * * *', /* chron schedule for every midnight, @see https://www.npmjs.com/package/node-schedule */
 	s3BucketName: '', /* bucket where data backups will be uploaded onto */
 	s3BucketPath: 'dashdb/', /* defaulting to uploading any s3 files into a folder, in the bucket */
@@ -39,7 +40,7 @@ var options = {
 var users = require('dashdb')('users', options);
 ```
 
-### AWS S3 Backups
+### AWS S3 Backups - Configuration
 To keep things simple yet flexible, our DashDB's AWS backups work on a collection by collection basis. That way, you can set them all to the same bucket, same backup schedule, same folder - or not!
 
 Every backup is timestamped and fully customizable. For ease and convenience, here are the relevant options you'd need to initialize any collection for easy and automatic backups.
@@ -58,6 +59,17 @@ var options = {
 
 var users = require('dashdb')('users', options);
 ```
+
+### AWS S3 Backups - Run or Scheduling
+To prevent any scenario with duplciative data backups onto S3, from say having multiple instances of any collection loaded for a number of users, use either the ```s3()``` or ```scheduleS3()``` methods on any collection with the main script for your app.
+
+```require('dashdb')('users').s3()``` starts backing up your collection data onto S3 without delay
+
+```require('dashdb')('users').scheduleS3()``` initiates the backup schedule for your data, according to the ```backupSchedule``` you've specified, or the default timing for once every day at midnight
+
+For example, okay use: After defining your ExpressJS app, calling ```scheduleS3()``` onto each collection.
+
+For example, not okay use: Calling ```scheduleS3()``` whenever a request is made and completing a query against any collection.
 
 ### Primary Key
 By default, the primary key is simply ```id``` and DashDB auto-generates that identifier for each row (or JSON document). Alternatively, you have the option of overriding the auto-generated identifier by simply passing your own value for the ```id```.
@@ -80,17 +92,47 @@ You can override the default ```hash``` naming convention with the following opt
 
 ```
 var options = {
-	hk: 'hash', /* hash key */
+	hk: 'hash' /* hash key */
 };
 
 var users = require('dashdb')('users', options);
 ```
 
-### Syncing or Committing
-Any manipulations to your collection, including any updates, insertions, or removals, will not be committed to the filesystem unless you specifically call ```sync()``` or ```commit()``` on the collection.
+### Auto Write - Syncing or Committing
+By default, any manipulations onto your collection data will be persisted to the saved version on your filesystem. By passing a boolean of ```false``` to option ```autoWrite```, you can disable this and manually call either ```sync()``` or ```commit()``` on any collection and save any manipulations to your collection data.
 
-### Methods
+```
+var options = {
+	autoWrite: true /* whether data is automatically written to filesystem on any change, except for empty() */
+};
+
+var users = require('dashdb')('users', options);
+```
+
+```require('dashdb')('users').commit()``` persists any collection data manipulation or additions onto the filesystem
+
+```require('dashdb')('users').sync()``` is an alias of ```commit()```
+
+### Atomic File Writes
+For accomodating potentially heavy and or concurrent file writes between multiple users, DashDB leverages the work from ```write-file-atomic``` and exposes two parameters (both require integers) that can help ensure the intregity of data during race conditions or high concurrency:
+
+```
+var options = {
+	uid: null, /* user id for any temporary writes, user permissions */
+	gid: null /* group id for any temporary writes, group permissions */
+};
+
+var users = require('dashdb')('users', options);
+```
+
+### Query Methods
 ```require('dashdb')('users').all()``` retrieves all the records for that collection
+
+```require('dashdb')('users').append(item1, item2, ...)``` inserts any number of items into your collection
+
+```require('dashdb')('users').add(item1, item2, ...)``` is an alias of ```append()```
+
+```require('dashdb')('users').create(item1, item2, ...)``` is an alias of ```append()```
 
 ```require('dashdb')('users').create(item1, item2, ...)``` inserts any number of items into your collection
 

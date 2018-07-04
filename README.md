@@ -134,8 +134,6 @@ var users = require('dashdb')('users', options);
 
 ```require('dashdb')('users').create(item1, item2, ...)``` is an alias of ```append()```
 
-```require('dashdb')('users').create(item1, item2, ...)``` inserts any number of items into your collection
-
 ```require('dashdb')('users').delete(predicate)``` removes any records matching that ```predicate``` object
 
 ```require('dashdb')('users').empty()``` completely removes all records from the collection and should be used with caution

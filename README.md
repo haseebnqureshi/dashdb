@@ -1,27 +1,99 @@
-Beautifully straight forward NoSQL JSON document DB.
+Quick, simple, durable JSON document DB for quick alpha rollouts, complete with AWS S3 backups with customizable chron scheduling.
 
 # DashDB
 
 ![npm monthly downloads](https://img.shields.io/npm/dm/dashdb.svg)
-![github release](https://img.shields.io/github/release/haseebnqureshi/dashdb.svg)
 ![github license](https://img.shields.io/github/license/haseebnqureshi/dashdb.svg)
 
 ### npm install dashdb --save
 
-### Background
-This project came from wanting the flexibility in a DashDB syntax, but without the bloat of having an extra database service starting in the background. Sometimes, you just want to store JSON data in a local file, and have intuitive methods that help you store and retrive that data. This's exactly what DashDB does.
+### Purpose & Features
+For (1) quickly spinning up alpha projects, (2) without worry about database drivers, connection strings, and separate databases, (3) non-relational or relational style JSON document storing, (4) complete with backups and custom scheduling onto AWS S3, (5) with document hashing, (6) atomic file writing, (7) UUID like id generation, (8) primary key overrides, and (9) created and modified timestamps and generation (with modifiable keys).
 
-### Getting Started
-Super straightforward. Here are the few steps:
-1. Bring DashDB into your project with ```npm install dashdb --save```
-2. Create any new data collection with ```var users = require('dashdb')('users')```
-3. Run your node app. That's it!
+### Getting Started - Easy Start
+```
+var users = require('dashdb')('users');
 
-### API 
-With each new data collection, you get a series of helpers that easily get your data in and out from local storage. So for clarity, if you ```var users = require('dashdb')('users')```, these methods are called on your ```users``` object.
+// view all available methods on the users collection
+console.log(users);
+```
+
+### Options - Intermediate / Advanced Start
+```
+var options = {
+	pk: 'id', /* primary key */
+	pkEntropy: 32, /* primary key entropy */
+	hk: 'hash', /* hash key */
+	ck: 'created', /* created key */
+	mk: 'modified' /* modified key */,
+	uid: null, /* user id for any temporary writes, user permissions */
+	gid: null, /* group id for any temporary writes, group permissions
+	backupSchedule: '* 0 * * *', /* chron schedule for every midnight, @see https://www.npmjs.com/package/node-schedule */
+	s3BucketName: '', /* bucket where data backups will be uploaded onto */
+	s3BucketPath: 'dashdb/', /* defaulting to uploading any s3 files into a folder, in the bucket */
+	s3AccessKey: '', /* aws access key for s3 put object permissions */
+	s3SecretAccessKey: '', /* aws secret access key for s3 put object permissions */
+	s3FileKey: `moment().format('YYYY/MM') + '/' + moment().format() + '-' + path.basename(filepath)` /* js eval to create file key onto s3 */
+};
+
+var users = require('dashdb')('users', options);
+```
+
+### AWS S3 Backups
+To keep things simple yet flexible, our DashDB's AWS backups work on a collection by collection basis. That way, you can set them all to the same bucket, same backup schedule, same folder - or not!
+
+Every backup is timestamped and fully customizable. For ease and convenience, here are the relevant options you'd need to initialize any collection for easy and automatic backups.
+
+Please note: this is not a typical chron, but stays alive with the node application. In other words, if your app goes down, so will this backup protocol. While this might seem like a weakness, this can be a strenth in prototyping quickly. If you use any keep-alive script to maintain your app, or even Elastic Beanstalk, your data backups should work well.
+
+```
+var options = {
+	backupSchedule: '* 0 * * *', /* chron schedule for every midnight, @see https://www.npmjs.com/package/node-schedule */
+	s3BucketName: '', /* bucket where data backups will be uploaded onto */
+	s3BucketPath: 'dashdb/', /* defaulting to uploading any s3 files into a folder, in the bucket */
+	s3AccessKey: '', /* aws access key for s3 put object permissions */
+	s3SecretAccessKey: '', /* aws secret access key for s3 put object permissions */
+	s3FileKey: `moment().format('YYYY/MM') + '/' + moment().format() + '-' + path.basename(filepath)` /* js eval to create file key onto s3 */
+};
+
+var users = require('dashdb')('users', options);
+```
 
 ### Primary Key
-By default, the primary key is simply ```id``` and DashDB auto-generates that identifier for each row (or JSON document). Alternatively, you have the option of overriding the auto-generated identifier. Simply pass your own value for the ```id``` parameter in any document save or update method.
+By default, the primary key is simply ```id``` and DashDB auto-generates that identifier for each row (or JSON document). Alternatively, you have the option of overriding the auto-generated identifier by simply passing your own value for the ```id```.
+
+Additionally, you can override the default ```id``` naming convention with the following option, along with the entropy involved in generating the UUID like value, if you're relying on DashDB to generate that primary key:
+
+```
+var options = {
+	pk: 'id', /* primary key */
+	pkEntropy: 32, /* primary key entropy */
+};
+
+var users = require('dashdb')('users', options);
+```
 
 ### Document Hashing
-By default, DashDB auto-generates that identifier as a unique hash to that object. This way, you can easily enforce uniqueness amongst your records.
+To help with enforcing uniqueness of data records througout your application, DashDB creates and stores a document hash. This is generated by taking hashing the entire record, minus its primary key, created key, modified key, or its resulting hash key.
+
+You can override the default ```hash``` naming convention with the following option, or completely disable the hashing mechanism by passing an empty string:
+
+```
+var options = {
+	hk: 'hash', /* hash key */
+};
+
+var users = require('dashdb')('users', options);
+```
+
+### Syncing or Committing
+Any manipulations to your collection, including any updates, insertions, or removals, will not be committed to the filesystem unless you specifically call ```sync()``` or ```commit()``` on the collection.
+
+### Methods
+```require('dashdb')('users').all()``` retrieves all the records for that collection
+```require('dashdb')('users').create(item1, item2, ...)``` inserts any number of items into your collection
+```require('dashdb')('users').delete(predicate)``` removes any records matching that ```predicate``` object
+```require('dashdb')('users').empty()``` completely removes all records from the collection and should be used with caution
+```require('dashdb')('users').update(predicate, values)``` updates any records matching the ```predicate``` object with the ```values``` object
+```require('dashdb')('users').where(predicate)``` retrieves all records matching the ```predicate``` object
+```require('dashdb')('users').filepath``` returns the data path to where the collection json is stored on disk
